@@ -2,6 +2,7 @@ from preprocess import preprocess
 from intent_detection import detect_intent, INTENT_RULES
 from kb_search import search_kb_by_intent, search_kb_globally
 from rag_engine import rag_chatbot
+from search_gemini import search_and_answer
 
 
 def intent_generic_response(intent, confidence):
@@ -72,4 +73,5 @@ def start_farmer_chatbot():
         
 if __name__ == "__main__":
     start_farmer_chatbot()
+
 
