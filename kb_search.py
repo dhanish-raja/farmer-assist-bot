@@ -8,7 +8,7 @@ def preprocess_kb():
 
 preprocess_kb()
 
-def search_kb_by_intent(user_tokens, intent, min_score=1):
+def search_kb_by_intent(user_tokens, intent, min_score=2):
     best_match, best_score = None, 0
 
     for item in knowledge_base:
@@ -43,3 +43,4 @@ def search_kb_globally(user_tokens, min_score=1):
             "confidence": best_score
         }
     return None
+
