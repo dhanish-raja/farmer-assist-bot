@@ -46,23 +46,30 @@ def start_farmer_chatbot():
             print("Chatbot: Exiting")
             break
 
-        # 1️⃣ RULE-BASED RESPONSE
+        # 1️⃣ Try RULE-BASED chatbot
         response = rule_based_chatbot(user_input)
 
         if response["intent"] != "fallback":
             print("Chatbot:", response["answer"], "\n")
+            print("By rule based chatbot")
             continue
 
-        # 2️⃣ RAG FALLBACK
+        # 2️⃣ Try RAG chatbot
         rag_response = rag_chatbot(user_input)
 
         if rag_response:
             print("Chatbot:", rag_response["answer"], "\n")
+            print("By RAG chatbot")
             continue
 
-        # 3️⃣ FINAL FALLBACK
+        ans = search_and_answer(user_input)
+        if ans != "NOT FOUND":
+            print("Chatbot:", ans, "\nBy search+gemini\n")
+            continue
+
+        # 3️⃣ Final fallback
         print("Chatbot: Sorry, I could not find an answer. Please give more details.\n")
-
-
+        
 if __name__ == "__main__":
     start_farmer_chatbot()
+
