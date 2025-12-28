@@ -27,7 +27,7 @@ INTENT_RULES = {
     }
 }
 
-def detect_intent(user_tokens, threshold=1):
+def detect_intent(user_tokens, threshold=3):
     best_intent, best_score = None, 0
 
     for intent, rule in INTENT_RULES.items():
@@ -42,3 +42,4 @@ def detect_intent(user_tokens, threshold=1):
     if best_score >= threshold:
         return best_intent, best_score
     return None, 0
+
