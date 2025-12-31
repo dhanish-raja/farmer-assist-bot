@@ -3,6 +3,10 @@ from intent_detection import detect_intent, INTENT_RULES
 from kb_search import search_kb_by_intent, search_kb_globally
 from rag_engine import rag_chatbot
 from search_gemini import search_and_answer
+from slot_config import INTENT_SLOTS, SLOT_QUESTIONS
+from slot_extraction import extract_slots, extract_location
+from state_manager import conversation_state, reset_state
+
 
 
 def intent_generic_response(intent, confidence):
@@ -13,28 +17,64 @@ def intent_generic_response(intent, confidence):
         "confidence": confidence
     }
 
+def get_missing_slots(intent, filled_slots):
+    required = INTENT_SLOTS.get(intent, [])
+    return [s for s in required if s not in filled_slots]
 
-def rule_based_chatbot(user_input):
+def stateful_chatbot(user_input):
+    global conversation_state
+
     user_tokens = set(preprocess(user_input))
-    intent, score = detect_intent(user_tokens)
 
-    if intent:
-        hit = search_kb_by_intent(user_tokens, intent)
-        if hit:
-            return hit
-        return intent_generic_response(intent, score)
+    # 1. location extraction
+    loc = extract_location(user_input)
+    if loc:
+        conversation_state["slots"]["location"] = loc
 
-    global_hit = search_kb_globally(user_tokens)
-    if global_hit:
-        return global_hit
+    # 2. slot extraction
+    conversation_state["slots"].update(extract_slots(user_tokens))
 
-    return {
-        "intent": "fallback",
-        "crop": "none",
-        "answer": "Sorry, I could not understand your question.",
-        "confidence": 0
-    }
+    # 3. intent lock
+    if not conversation_state["intent"]:
+        intent, _ = detect_intent(user_tokens)
+        if not intent:
+            return "Sorry, I could not understand."
+        conversation_state["intent"] = intent
 
+    intent = conversation_state["intent"]
+
+    # 4. slot gate
+    missing = get_missing_slots(intent, conversation_state["slots"])
+    if missing:
+        return SLOT_QUESTIONS[missing[0]]
+
+    # 5. build slot query
+    slot_query = " ".join(conversation_state["slots"].values())
+    slot_tokens = set(slot_query.split())
+
+    # 6. KB
+    kb_hit = search_kb_by_intent(slot_tokens, intent)
+    if kb_hit:
+        answer = kb_hit["answer"]
+    else:
+        generic = intent_generic_response(intent, 0)
+        if generic and generic.get("answer"):
+            answer = generic["answer"]
+        else:
+            rag_hit = rag_chatbot(slot_query)
+            if rag_hit:
+                answer = rag_hit["answer"]
+            else:
+                answer = search_and_answer(slot_query)
+
+    # 7. reset
+    conversation_state = reset_state()
+    return answer
+
+
+# =========================
+# CHAT LOOP (STATEFUL → KB → RAG → GEMINI)
+# =========================
 
 def start_farmer_chatbot():
     print("Farmer Chatbot Started")
@@ -47,31 +87,12 @@ def start_farmer_chatbot():
             print("Chatbot: Exiting")
             break
 
-        # 1️⃣ Try RULE-BASED chatbot
-        response = rule_based_chatbot(user_input)
+        answer = stateful_chatbot(user_input)
+        print("Chatbot:", answer)
 
-        if response["intent"] != "fallback":
-            print("Chatbot:", response["answer"], "\n")
-            print("By rule based chatbot")
-            continue
-
-        # 2️⃣ Try RAG chatbot
-        rag_response = rag_chatbot(user_input)
-
-        if rag_response:
-            print("Chatbot:", rag_response["answer"], "\n")
-            print("By RAG chatbot")
-            continue
-
-        ans = search_and_answer(user_input)
-        if ans != "NOT FOUND":
-            print("Chatbot:", ans, "\nBy search+gemini\n")
-            continue
-
-        # 3️⃣ Final fallback
-        print("Chatbot: Sorry, I could not find an answer. Please give more details.\n")
         
 if __name__ == "__main__":
     start_farmer_chatbot()
+
 
 
