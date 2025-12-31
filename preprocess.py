@@ -4,8 +4,6 @@ import spacy
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 
-nltk.download("punkt")
-nltk.download("stopwords")
 
 nlp = spacy.load("en_core_web_sm")
 STOP_WORDS = set(stopwords.words("english"))
@@ -48,3 +46,4 @@ def preprocess(text):
     tokens = clean_tokens(tokens)
     tokens = lemmatize(tokens)
     return tokens
+
