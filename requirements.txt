@@ -1,0 +1,7 @@
+nltk
+spacy
+scikit-learn
+sentence-transformers
+numpy
+requests
+google-genai
