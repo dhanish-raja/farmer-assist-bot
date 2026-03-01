@@ -1,14 +1,16 @@
+import os
 import requests
 import sounddevice as sd
 import numpy as np
 import scipy.io.wavfile as wav
 import time
-import os
+import sys
 
-# ==============================
-# 🔐 ADD YOUR SARVAM API KEY
-# ==============================
-API_KEY = "SARVAM_API_KEY"
+API_KEY = "SARVAM_AI_API_KEY"
+
+if not API_KEY:
+    print("Error: SARVAM_AI_API_KEY not set.")
+    sys.exit(1)
 
 # ==============================
 # 🎤 RECORD AUDIO (Stop after 3s silence)
@@ -20,7 +22,7 @@ SILENCE_DURATION = 3  # seconds
 
 
 def record_audio(filename="recorded.wav"):
-    print("🎙 Speak now...")
+    print("Speak now...")
 
     audio_buffer = []
     silence_start = None
@@ -29,7 +31,6 @@ def record_audio(filename="recorded.wav"):
         nonlocal silence_start
 
         volume = np.sqrt(np.mean(indata**2))
-
         audio_buffer.append(indata.copy())
 
         if volume < SILENCE_THRESHOLD:
@@ -52,14 +53,13 @@ def record_audio(filename="recorded.wav"):
         pass
 
     audio_data = np.concatenate(audio_buffer, axis=0)
-
     wav.write(filename, SAMPLE_RATE, audio_data)
 
     print("Recording saved:", filename)
 
 
 # ==============================
-# 🌍 SEND TO SARVAM STT
+# 🌍 SEND TO SARVAM STT (Translate Mode)
 # ==============================
 
 def transcribe_audio(filename="recorded.wav"):
@@ -75,29 +75,27 @@ def transcribe_audio(filename="recorded.wav"):
 
     data = {
         "model": "saaras:v3",
-        "mode": "transcribe"
+        "mode": "translate"
     }
 
-    response = requests.post(url, headers=headers, files=files, data=data)
+    try:
+        response = requests.post(url, headers=headers, files=files, data=data)
+        response.raise_for_status()
 
-    print("Status Code:", response.status_code)
+        print("Status Code:", response.status_code)
+        result = response.json()
+        print("Response:", result)
 
-    if response.status_code != 200:
-        print("Error:", response.text)
-        return
+        transcript = result.get("transcript")
 
-    result = response.json()
-    print("Response:", result)
+        if transcript:
+            print("\nTranscript:")
+            print(transcript)
+        else:
+            print("Transcript not found in response.")
 
-    # Sarvam usually returns:
-    # {"transcript": "..."}
-    transcript = result.get("transcript")
-
-    if transcript:
-        print("\n📝 Transcript:")
-        print(transcript)
-    else:
-        print("Transcript not found in response.")
+    except requests.exceptions.RequestException as e:
+        print("Request failed:", e)
 
 
 # ==============================
